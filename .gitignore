@@ -1,0 +1,14 @@
+
+\.cproject
+
+\.gdbinit
+
+\.project
+
+\.settings/
+
+Debug/
+
+proyecto-luna_gdb_arm-poky-linux-gnueabi\.launch
+
+toolchain\.cmake
