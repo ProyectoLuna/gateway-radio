@@ -8,14 +8,14 @@
 #include "Gateway.h"
 
 Gateway::Gateway() {
-	radiorf24 = RadioRF24();
+	printf("Gateway constructor\n");
 }
 
 Gateway::~Gateway() {
 	// TODO Auto-generated destructor stub
 }
 
-int Gateway::start(void) {
-	radiorf24.start();
+int Gateway::check_remotes(void) {
+	radiorf24.check_remotes();
 	return 0;
 }

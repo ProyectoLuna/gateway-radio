@@ -19,7 +19,7 @@ private:
 public:
 	RadioRF24();
 	virtual ~RadioRF24();
-	int start(void);
+	int check_remotes(void);
 };
 
 #endif /* RADIORF24_H_ */

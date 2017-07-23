@@ -16,7 +16,7 @@ private:
 public:
 	Gateway();
 	virtual ~Gateway();
-	int start(void);
+	int check_remotes(void);
 };
 
 #endif /* GATEWAY_H_ */
