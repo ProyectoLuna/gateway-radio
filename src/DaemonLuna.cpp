@@ -15,34 +15,35 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <syslog.h>
 
 using namespace std;
 
 #include "DaemonLuna.h"
 
-static void INThandler(int sig);
-int gameover;
-
-void INThandler(int sig)
+static void name_to_pidfile(const char* name, char* pidname)
 {
-	// Set inverse singleton variable
-	gameover = 1;
+	stringstream str_stream;
+	str_stream << "/var/run/" << name << "d.pid";
+
+	strncpy(pidname, (char*)str_stream.str().c_str(), DAEMON_PIDFILE_LEN);
 }
 
-DaemonLuna::DaemonLuna(const char* dname) {
-	gameover = 0;
-	stringstream str_stream;
-	sact.sa_handler = INThandler;
+DaemonLuna::DaemonLuna(const char* dname, void (*inthandler)(int)) {
+	sact.sa_handler = inthandler;
 	sact.sa_flags = 0;
+	char pidfileaux[DAEMON_PIDFILE_LEN] = {};
 
 	strncpy(name, dname, DAEMON_NAME_LEN);
-	str_stream << "/var/run/" << name << "d.pid";
-	strncpy(pidfilename, name, DAEMON_PIDFILE_LEN);
+
+	name_to_pidfile(name, pidfileaux);
+	strncpy(pidfilename, pidfileaux, DAEMON_PIDFILE_LEN);
 
 	// Register signal handler
-	sigaction(SIGINT, &sact, NULL);
-	sigaction(SIGKILL, &sact, NULL);
-	sigaction(SIGTERM, &sact, NULL);
+	if (sigaction(SIGINT, &sact, NULL))
+		cout << "sigaction error... SIGINT, " << strerror(errno) << endl;
+	if (sigaction(SIGTERM, &sact, NULL))
+		cout << "sigaction error... SIGTERM, " << strerror(errno) << endl;
 
 	cout << "DEBUG: daemon name: " << name << " pidfile: " << pidfilename << endl;
 }
@@ -52,26 +53,24 @@ DaemonLuna::~DaemonLuna() {
 	finalize();
 }
 
-pid_t DaemonLuna::read_pid(void)
+pid_t DaemonLuna::read_pid(const char* name)
 {
 	int nsize = 16;
 	char *data;
 	pid_t pid;
-	ifstream file(pidfilename);
+	char pidfileaux[DAEMON_PIDFILE_LEN];
+	name_to_pidfile(name, pidfileaux);
+	ifstream file(pidfileaux);
 	stringstream strvalue;
 
-	if (!file.is_open()) {
-		cout << "Error open file, " << strerror(errno);
+	if (!file.is_open())
 		return 0;
-	}
 
 	file.read(data, nsize);
 	file.close();
 
 	strvalue << data;
 	strvalue >> pid;
-
-	cout << "Pid read: " << pid;
 
 	return pid;
 }
@@ -81,7 +80,7 @@ int DaemonLuna::write_pid(void)
 	ofstream file(pidfilename);
 
 	if (!file.is_open()) {
-		cout << "Error open file, " << strerror(errno);
+		cout << __func__ << " Error open file, " << strerror(errno) << endl;
 		return 0;
 	}
 
@@ -92,9 +91,9 @@ int DaemonLuna::write_pid(void)
 	return 0;
 }
 
-int DaemonLuna::check_pid(void)
+int DaemonLuna::check_pid(const char* name)
 {
-	pid_t pid = read_pid();
+	pid_t pid = read_pid(name);
 
 	// Daemon is already holding the pid file
 	if ((!pid) || (pid == getpid()))
@@ -108,11 +107,6 @@ void DaemonLuna::daemonize(void)
 	// Daemonize process
 	if(daemon(0, 0))
 		exit(0);
-}
-
-bool DaemonLuna::is_alive(void)
-{
-	return !gameover;
 }
 
 void DaemonLuna::finalize(void)

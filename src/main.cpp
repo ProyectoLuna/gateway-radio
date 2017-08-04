@@ -9,6 +9,8 @@
 #include <sys/un.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <unistd.h>
+#include <syslog.h>
 
 using namespace std;
 
@@ -18,6 +20,18 @@ using namespace std;
 #define DAEMON_GATEWAY_SOCKET_PATH_LEN 64
 #define DAEMON_GATEWAY_API_SOCKET_TIMEOUT 100 // ms
 
+int gameover = 0;
+static void INThandler(int sig);
+void INThandler(int sig)
+{
+	openlog("signal handler", 0, LOG_USER);
+	syslog(0, "KILL RECEIVED");
+	closelog();
+
+	// Set inverse singleton variable
+	gameover = 1;
+}
+
 class DaemonGateway: public DaemonLuna, public Gateway {
 public:
 	// UNIX Socket
@@ -26,12 +40,12 @@ public:
 	struct pollfd pollfd;
 	char socket_path[DAEMON_GATEWAY_SOCKET_PATH_LEN];
 
-	DaemonGateway(const char *dname);
+	DaemonGateway(const char *dname, void (*inthandler)(int));
 	virtual ~DaemonGateway();
 	int handle_request();
 };
 
-DaemonGateway::DaemonGateway(const char *dname) : DaemonLuna(dname), Gateway() {
+DaemonGateway::DaemonGateway(const char *dname, void (*inthandler)(int)) : DaemonLuna(dname, inthandler), Gateway() {
 	strncpy(socket_path, "/var/run/dgateway", DAEMON_GATEWAY_SOCKET_PATH_LEN);
 
 	// UNIX socket
@@ -55,6 +69,9 @@ DaemonGateway::DaemonGateway(const char *dname) : DaemonLuna(dname), Gateway() {
 }
 
 DaemonGateway:: ~DaemonGateway() {
+	finalize();
+	unlink(socket_path);
+	close(socketfd);
 }
 
 int DaemonGateway::handle_request(void)
@@ -63,31 +80,44 @@ int DaemonGateway::handle_request(void)
 }
 
 int main(int argc, char** argv) {
-	DaemonGateway gateway = DaemonGateway("gateway");
+	openlog("gateway", 0, LOG_USER);
+	syslog(0, "ola q aseeeeee %s", "gateway");
+	closelog();
 
-	if (!gateway.check_pid())
+	pid_t pid;
+	const char* daemon_name = "gateway";
+
+	if ((pid = DaemonLuna::check_pid(daemon_name))) {
+		cout << "ERROR Gateway daemon already exists, pid: " << pid << endl;
 		return -1;
+	}
 
-	gateway.daemonize();
+	DaemonGateway* gateway = new DaemonGateway(daemon_name, INThandler);
 
-	gateway.write_pid();
+	gateway->daemonize();
+
+	gateway->write_pid();
 
 	int ret;
-	while(gateway.is_alive()) {
+	while(!gameover) {
 		// Polling
-		ret = poll(&gateway.pollfd, 1, DAEMON_GATEWAY_API_SOCKET_TIMEOUT);
+		ret = poll(&gateway->pollfd, 1, DAEMON_GATEWAY_API_SOCKET_TIMEOUT);
 
 		// Check poll result
 		if (ret > 0) {
 			// Handle request from API
-			gateway.handle_request();
+			gateway->handle_request();
 		}else if (ret < 0) {
 			continue;
 		}
 
-		gateway.check_remotes();
+		gateway->check_remotes();
 	}
 
-	gateway.finalize();
+	openlog("gateway", 0, LOG_USER);
+	syslog(0, "me mueroooooo %s", "gateway");
+	closelog();
+
+	delete gateway;
 	return 0;
 }

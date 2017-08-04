@@ -20,19 +20,19 @@
 #define DAEMON_PIDFILE_LEN	64
 
 class DaemonLuna {
-public:
+private:
 	char name[DAEMON_NAME_LEN];
 	char pidfilename[DAEMON_NAME_LEN];
 	struct sigaction sact;
 
-	DaemonLuna(const char *dname);
+public:
+	DaemonLuna(const char *dname, void (*inthandler)(int));
 	virtual ~DaemonLuna();
 	void int_handler(int sig);
-	pid_t read_pid(void);
+	static pid_t read_pid(const char* name);
 	int write_pid(void);
-	int check_pid(void);
+	static int check_pid(const char* name);
 	void daemonize(void);
-	bool is_alive(void);
 	void finalize(void);
 };
 
