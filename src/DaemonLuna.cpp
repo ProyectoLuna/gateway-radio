@@ -30,20 +30,13 @@ static void name_to_pidfile(const char* name, char* pidname)
 }
 
 DaemonLuna::DaemonLuna(const char* dname, void (*inthandler)(int)) {
-	sact.sa_handler = inthandler;
-	sact.sa_flags = 0;
 	char pidfileaux[DAEMON_PIDFILE_LEN] = {};
 
 	strncpy(name, dname, DAEMON_NAME_LEN);
 
 	name_to_pidfile(name, pidfileaux);
 	strncpy(pidfilename, pidfileaux, DAEMON_PIDFILE_LEN);
-
-	// Register signal handler
-	if (sigaction(SIGINT, &sact, NULL))
-		cout << "sigaction error... SIGINT, " << strerror(errno) << endl;
-	if (sigaction(SIGTERM, &sact, NULL))
-		cout << "sigaction error... SIGTERM, " << strerror(errno) << endl;
+	sighandler = inthandler;
 
 	cout << "DEBUG: daemon name: " << name << " pidfile: " << pidfilename << endl;
 }
@@ -104,9 +97,18 @@ int DaemonLuna::check_pid(const char* name)
 
 void DaemonLuna::daemonize(void)
 {
+	sact.sa_handler = sighandler;
+	sact.sa_flags = 0;
+
 	// Daemonize process
 	if(daemon(0, 0))
 		exit(0);
+
+	// Register signal handler
+	if (sigaction(SIGINT, &sact, NULL))
+		cout << "sigaction error... SIGINT, " << strerror(errno) << endl;
+	if (sigaction(SIGTERM, &sact, NULL))
+		cout << "sigaction error... SIGTERM, " << strerror(errno) << endl;
 }
 
 void DaemonLuna::finalize(void)

@@ -24,11 +24,6 @@ int gameover = 0;
 static void INThandler(int sig);
 void INThandler(int sig)
 {
-	openlog("signal handler", 0, LOG_USER);
-	syslog(0, "KILL RECEIVED");
-	closelog();
-
-	// Set inverse singleton variable
 	gameover = 1;
 }
 
@@ -80,10 +75,6 @@ int DaemonGateway::handle_request(void)
 }
 
 int main(int argc, char** argv) {
-	openlog("gateway", 0, LOG_USER);
-	syslog(0, "ola q aseeeeee %s", "gateway");
-	closelog();
-
 	pid_t pid;
 	const char* daemon_name = "gateway";
 
@@ -113,10 +104,6 @@ int main(int argc, char** argv) {
 
 		gateway->check_remotes();
 	}
-
-	openlog("gateway", 0, LOG_USER);
-	syslog(0, "me mueroooooo %s", "gateway");
-	closelog();
 
 	delete gateway;
 	return 0;

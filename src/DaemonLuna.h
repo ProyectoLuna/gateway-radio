@@ -24,6 +24,7 @@ private:
 	char name[DAEMON_NAME_LEN];
 	char pidfilename[DAEMON_NAME_LEN];
 	struct sigaction sact;
+	void (*sighandler)(int);
 
 public:
 	DaemonLuna(const char *dname, void (*inthandler)(int));
